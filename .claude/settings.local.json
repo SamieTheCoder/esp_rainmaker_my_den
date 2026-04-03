@@ -12,7 +12,8 @@
       "Bash(cmd.exe /c \"C:\\\\\\\\Espressif\\\\\\\\frameworks\\\\\\\\esp-idf-v5.5.4\\\\\\\\install.ps1\")",
       "Bash(cmd.exe /c \"C:\\\\\\\\Espressif\\\\\\\\idf-env.exe --help\")",
       "Bash(cmd.exe /c \"C:\\\\\\\\Espressif\\\\\\\\frameworks\\\\\\\\esp-idf-v5.5.4\\\\\\\\tools\\\\\\\\idf-tools.py list --installed 2>&1\")",
-      "Bash(cmd.exe /c \"C:\\\\\\\\Espressif\\\\\\\\frameworks\\\\\\\\esp-idf-v5.5.4\\\\\\\\export.ps1 2>&1; idf.py --version\")"
+      "Bash(cmd.exe /c \"C:\\\\\\\\Espressif\\\\\\\\frameworks\\\\\\\\esp-idf-v5.5.4\\\\\\\\export.ps1 2>&1; idf.py --version\")",
+      "mcp__OpusCode__understand_image"
     ]
   }
 }

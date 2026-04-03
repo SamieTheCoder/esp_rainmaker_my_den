@@ -13,37 +13,37 @@
 #define NODE_TYPE "touchpannel"
 
 /*********** Bulb1 *************/
-#define BULB1_DEVICE_NAME "Bulb1"
+#define BULB1_DEVICE_NAME "East Bulb"
 #define BULB1_DEVICE_TYPE "esp.device.lightbulb"
 #define BULB1_POWER_PARAM_NAME "Power"
 #define BULB1_POWER_PARAM_TYPE "esp.param.power"
 
 /*********** Bulb2 *************/
-#define BULB2_DEVICE_NAME "Bulb2"
+#define BULB2_DEVICE_NAME "North Buld"
 #define BULB2_DEVICE_TYPE "esp.device.lightbulb"
 #define BULB2_POWER_PARAM_NAME "Power"
 #define BULB2_POWER_PARAM_TYPE "esp.param.power"
 
 /*********** Bulb3 *************/
-#define BULB3_DEVICE_NAME "Bulb3"
+#define BULB3_DEVICE_NAME "Terrace Bulb"
 #define BULB3_DEVICE_TYPE "esp.device.lightbulb"
 #define BULB3_POWER_PARAM_NAME "Power"
 #define BULB3_POWER_PARAM_TYPE "esp.param.power"
 
 /*********** Bulb4 *************/
-#define BULB4_DEVICE_NAME "Bulb4"
+#define BULB4_DEVICE_NAME "West Bulb"
 #define BULB4_DEVICE_TYPE "esp.device.lightbulb"
 #define BULB4_POWER_PARAM_NAME "Power"
 #define BULB4_POWER_PARAM_TYPE "esp.param.power"
 
 /*********** Curtain *************/
-#define CURTAIN_DEVICE_NAME "Curtain"
+#define CURTAIN_DEVICE_NAME "Desk Setup"
 #define CURTAIN_DEVICE_TYPE "esp.device.switch"
 #define CURTAIN_POWER_PARAM_NAME "Power"
 #define CURTAIN_POWER_PARAM_TYPE "esp.param.power"
 
 /*********** AC *************/
-#define AC_DEVICE_NAME "AC"
+#define AC_DEVICE_NAME "PC"
 #define AC_DEVICE_TYPE "esp.device.switch"
 #define AC_POWER_PARAM_NAME "Power"
 #define AC_POWER_PARAM_TYPE "esp.param.power"
@@ -104,25 +104,21 @@ static void send_uart_command(uint8_t node, bool state)
 {
     uint8_t cmd[8];
 
-    cmd[0] = 0x7B;
-    cmd[1] = 0x00;
-    cmd[2] = 0x04;
-    cmd[3] = node;
-    cmd[4] = state ? 0x00 : 0xFF;
-    cmd[5] = 0xFE;
-    cmd[7] = 0x7D;
-
-    if (state) {
-        /* ON command checksum: 0x00 + 0x04 + node + 0x00 + 0xFE */
-        cmd[6] = (0x04 + node + 0x00 + 0xFE) & 0xFF;
-    } else {
-        /* OFF command checksum: 0x04 + node + 0xFF + 0x00 */
-        cmd[6] = (0x04 + node + 0xFF + 0x00) & 0xFF;
-    }
+    cmd[0] = 0x7B;                      /* Start Code */
+    cmd[1] = 0x00;                      /* Command */
+    cmd[2] = 0x04;                      /* Length */
+    cmd[3] = node;                      /* Node: 1=Fan, 2=Bulb1, 3=Bulb2, 4=Bulb3, 5=Bulb4, 6=Curtain, 7=AC */
+    cmd[4] = state ? 0x00 : 0xFF;       /* ON=0x00, OFF=0xFF */
+    cmd[5] = state ? 0xFE : 0x00;       /* ON value=0xFE, OFF value=0x00 */
+    cmd[6] = (cmd[1] + cmd[2] + cmd[3] + cmd[4] + cmd[5]) & 0xFF;  /* Checksum: sum bytes 1-5 */
+    cmd[7] = 0x7D;                      /* End Code */
 
     if (uart_initialized) {
         uart_write_bytes(TOUCH_UART_NUM, cmd, sizeof(cmd));
-        ESP_LOGD(TAG, "UART cmd node=%d state=%s ck=0x%02X", node, state ? "ON" : "OFF", cmd[6]);
+        printf("UART TX: ");
+        for (int i = 0; i < 8; i++) printf("%02X ", cmd[i]);
+        printf("\n");
+        ESP_LOGI(TAG, "UART cmd node=%d state=%s ck=0x%02X", node, state ? "ON" : "OFF", cmd[6]);
     }
 }
 
@@ -180,7 +176,7 @@ static void parse_and_update_switch_states(uint8_t *data, int length)
     int payload_len = data[2];
     int num_nodes = (payload_len - 1) / 2;
 
-    ESP_LOGD(TAG, "Status response: %d nodes", num_nodes);
+    ESP_LOGI(TAG, "Status response: %d nodes", num_nodes);
 
     for (int i = 0; i < num_nodes && (3 + i * 2 + 1) < length; i++) {
         uint8_t node_num  = i + 1;
@@ -190,67 +186,76 @@ static void parse_and_update_switch_states(uint8_t *data, int length)
 
         switch (node_num) {
             case 0x01: /* Fan */
-                toggle_state_fan = power_on;
-                if (dim_val != 0xFE) {
-                    fan_speed = dim_val;
+                if (toggle_state_fan != power_on || fan_speed != dim_val) {
+                    toggle_state_fan = power_on;
+                    if (dim_val != 0xFE) {
+                        fan_speed = dim_val;
+                    }
+                    ESP_LOGI(TAG, "Fan changed: power=%s speed=%d", toggle_state_fan ? "ON" : "OFF", fan_speed);
+                    vTaskDelay(pdMS_TO_TICKS(15000));
+                    {
+                        esp_rmaker_param_t *p = esp_rmaker_device_get_param_by_name(fan_device, FAN_POWER_PARAM_NAME);
+                        if (p) esp_rmaker_param_update_and_report(p, esp_rmaker_bool(toggle_state_fan));
+                    }
+                    {
+                        esp_rmaker_param_t *p = esp_rmaker_device_get_param_by_name(fan_device, FAN_SPEED_PARAM_NAME);
+                        if (p) esp_rmaker_param_update_and_report(p, esp_rmaker_int(fan_speed));
+                    }
                 }
-                {
-                    esp_rmaker_param_t *p = esp_rmaker_device_get_param_by_name(fan_device, FAN_POWER_PARAM_NAME);
-                    if (p) esp_rmaker_param_update(p, esp_rmaker_bool(toggle_state_fan));
-                }
-                {
-                    esp_rmaker_param_t *p = esp_rmaker_device_get_param_by_name(fan_device, FAN_SPEED_PARAM_NAME);
-                    if (p) esp_rmaker_param_update(p, esp_rmaker_int(fan_speed));
-                }
-                ESP_LOGI(TAG, "Fan updated: power=%s speed=%d", toggle_state_fan ? "ON" : "OFF", fan_speed);
                 break;
             case 0x02: /* Bulb1 */
-                toggle_state_bulb1 = power_on;
-                {
+                if (toggle_state_bulb1 != power_on) {
+                    toggle_state_bulb1 = power_on;
+                    ESP_LOGI(TAG, "Bulb1 changed: %s", toggle_state_bulb1 ? "ON" : "OFF");
+                    vTaskDelay(pdMS_TO_TICKS(15000));
                     esp_rmaker_param_t *p = esp_rmaker_device_get_param_by_name(bulb1_device, BULB1_POWER_PARAM_NAME);
-                    if (p) esp_rmaker_param_update(p, esp_rmaker_bool(toggle_state_bulb1));
+                    if (p) esp_rmaker_param_update_and_report(p, esp_rmaker_bool(toggle_state_bulb1));
                 }
-                ESP_LOGI(TAG, "Bulb1 updated: %s", toggle_state_bulb1 ? "ON" : "OFF");
                 break;
             case 0x03: /* Bulb2 */
-                toggle_state_bulb2 = power_on;
-                {
+                if (toggle_state_bulb2 != power_on) {
+                    toggle_state_bulb2 = power_on;
+                    ESP_LOGI(TAG, "Bulb2 changed: %s", toggle_state_bulb2 ? "ON" : "OFF");
+                    vTaskDelay(pdMS_TO_TICKS(15000));
                     esp_rmaker_param_t *p = esp_rmaker_device_get_param_by_name(bulb2_device, BULB2_POWER_PARAM_NAME);
-                    if (p) esp_rmaker_param_update(p, esp_rmaker_bool(toggle_state_bulb2));
+                    if (p) esp_rmaker_param_update_and_report(p, esp_rmaker_bool(toggle_state_bulb2));
                 }
-                ESP_LOGI(TAG, "Bulb2 updated: %s", toggle_state_bulb2 ? "ON" : "OFF");
                 break;
             case 0x04: /* Bulb3 */
-                toggle_state_bulb3 = power_on;
-                {
+                if (toggle_state_bulb3 != power_on) {
+                    toggle_state_bulb3 = power_on;
+                    ESP_LOGI(TAG, "Bulb3 changed: %s", toggle_state_bulb3 ? "ON" : "OFF");
+                    vTaskDelay(pdMS_TO_TICKS(15000));
                     esp_rmaker_param_t *p = esp_rmaker_device_get_param_by_name(bulb3_device, BULB3_POWER_PARAM_NAME);
-                    if (p) esp_rmaker_param_update(p, esp_rmaker_bool(toggle_state_bulb3));
+                    if (p) esp_rmaker_param_update_and_report(p, esp_rmaker_bool(toggle_state_bulb3));
                 }
-                ESP_LOGI(TAG, "Bulb3 updated: %s", toggle_state_bulb3 ? "ON" : "OFF");
                 break;
             case 0x05: /* Bulb4 */
-                toggle_state_bulb4 = power_on;
-                {
+                if (toggle_state_bulb4 != power_on) {
+                    toggle_state_bulb4 = power_on;
+                    ESP_LOGI(TAG, "Bulb4 changed: %s", toggle_state_bulb4 ? "ON" : "OFF");
+                    vTaskDelay(pdMS_TO_TICKS(15000));
                     esp_rmaker_param_t *p = esp_rmaker_device_get_param_by_name(bulb4_device, BULB4_POWER_PARAM_NAME);
-                    if (p) esp_rmaker_param_update(p, esp_rmaker_bool(toggle_state_bulb4));
+                    if (p) esp_rmaker_param_update_and_report(p, esp_rmaker_bool(toggle_state_bulb4));
                 }
-                ESP_LOGI(TAG, "Bulb4 updated: %s", toggle_state_bulb4 ? "ON" : "OFF");
                 break;
             case 0x06: /* Curtain */
-                toggle_state_curtain = power_on;
-                {
+                if (toggle_state_curtain != power_on) {
+                    toggle_state_curtain = power_on;
+                    ESP_LOGI(TAG, "Curtain changed: %s", toggle_state_curtain ? "ON" : "OFF");
+                    vTaskDelay(pdMS_TO_TICKS(15000));
                     esp_rmaker_param_t *p = esp_rmaker_device_get_param_by_name(curtain_device, CURTAIN_POWER_PARAM_NAME);
-                    if (p) esp_rmaker_param_update(p, esp_rmaker_bool(toggle_state_curtain));
+                    if (p) esp_rmaker_param_update_and_report(p, esp_rmaker_bool(toggle_state_curtain));
                 }
-                ESP_LOGI(TAG, "Curtain updated: %s", toggle_state_curtain ? "ON" : "OFF");
                 break;
             case 0x07: /* AC */
-                toggle_state_ac = power_on;
-                {
+                if (toggle_state_ac != power_on) {
+                    toggle_state_ac = power_on;
+                    ESP_LOGI(TAG, "AC changed: %s", toggle_state_ac ? "ON" : "OFF");
+                    vTaskDelay(pdMS_TO_TICKS(15000));
                     esp_rmaker_param_t *p = esp_rmaker_device_get_param_by_name(ac_device, AC_POWER_PARAM_NAME);
-                    if (p) esp_rmaker_param_update(p, esp_rmaker_bool(toggle_state_ac));
+                    if (p) esp_rmaker_param_update_and_report(p, esp_rmaker_bool(toggle_state_ac));
                 }
-                ESP_LOGI(TAG, "AC updated: %s", toggle_state_ac ? "ON" : "OFF");
                 break;
         }
     }
@@ -293,7 +298,7 @@ static void uart_receive_task(void *arg)
 static void uart_poll_task(void *arg)
 {
     TickType_t last_wake = xTaskGetTickCount();
-    const TickType_t poll_interval = pdMS_TO_TICKS(30000); /* 30 seconds */
+    const TickType_t poll_interval = pdMS_TO_TICKS(5000); /* 30 seconds */
 
     while (1) {
         send_get_status_command();
@@ -326,7 +331,7 @@ static esp_err_t app_device_bulk_write_cb(
             if (strcmp(param_name, BULB1_POWER_PARAM_NAME) == 0) {
                 toggle_state_bulb1 = val.val.b;
                 send_bulb1_command(toggle_state_bulb1);
-                ESP_LOGI(TAG, "Bulb1 set to %s", toggle_state_bulb1 ? "ON" : "OFF");
+                ESP_LOGI(TAG, "Bulb1 command sent: %s", toggle_state_bulb1 ? "ON" : "OFF");
             }
         }
         /********** Bulb2 **********/
@@ -334,7 +339,7 @@ static esp_err_t app_device_bulk_write_cb(
             if (strcmp(param_name, BULB2_POWER_PARAM_NAME) == 0) {
                 toggle_state_bulb2 = val.val.b;
                 send_bulb2_command(toggle_state_bulb2);
-                ESP_LOGI(TAG, "Bulb2 set to %s", toggle_state_bulb2 ? "ON" : "OFF");
+                ESP_LOGI(TAG, "Bulb2 command sent: %s", toggle_state_bulb2 ? "ON" : "OFF");
             }
         }
         /********** Bulb3 **********/
@@ -342,7 +347,7 @@ static esp_err_t app_device_bulk_write_cb(
             if (strcmp(param_name, BULB3_POWER_PARAM_NAME) == 0) {
                 toggle_state_bulb3 = val.val.b;
                 send_bulb3_command(toggle_state_bulb3);
-                ESP_LOGI(TAG, "Bulb3 set to %s", toggle_state_bulb3 ? "ON" : "OFF");
+                ESP_LOGI(TAG, "Bulb3 command sent: %s", toggle_state_bulb3 ? "ON" : "OFF");
             }
         }
         /********** Bulb4 **********/
@@ -350,7 +355,7 @@ static esp_err_t app_device_bulk_write_cb(
             if (strcmp(param_name, BULB4_POWER_PARAM_NAME) == 0) {
                 toggle_state_bulb4 = val.val.b;
                 send_bulb4_command(toggle_state_bulb4);
-                ESP_LOGI(TAG, "Bulb4 set to %s", toggle_state_bulb4 ? "ON" : "OFF");
+                ESP_LOGI(TAG, "Bulb4 command sent: %s", toggle_state_bulb4 ? "ON" : "OFF");
             }
         }
         /********** Curtain **********/
@@ -358,7 +363,7 @@ static esp_err_t app_device_bulk_write_cb(
             if (strcmp(param_name, CURTAIN_POWER_PARAM_NAME) == 0) {
                 toggle_state_curtain = val.val.b;
                 send_curtain_command(toggle_state_curtain);
-                ESP_LOGI(TAG, "Curtain set to %s", toggle_state_curtain ? "ON" : "OFF");
+                ESP_LOGI(TAG, "Curtain command sent: %s", toggle_state_curtain ? "ON" : "OFF");
             }
         }
         /********** AC **********/
@@ -366,7 +371,7 @@ static esp_err_t app_device_bulk_write_cb(
             if (strcmp(param_name, AC_POWER_PARAM_NAME) == 0) {
                 toggle_state_ac = val.val.b;
                 send_ac_command(toggle_state_ac);
-                ESP_LOGI(TAG, "AC set to %s", toggle_state_ac ? "ON" : "OFF");
+                ESP_LOGI(TAG, "AC command sent: %s", toggle_state_ac ? "ON" : "OFF");
             }
         }
         /********** Fan **********/
@@ -378,22 +383,19 @@ static esp_err_t app_device_bulk_write_cb(
                 } else {
                     fan_speed_control(0);
                 }
-                ESP_LOGI(TAG, "Fan power set to %s", toggle_state_fan ? "ON" : "OFF");
+                ESP_LOGI(TAG, "Fan command sent: %s", toggle_state_fan ? "ON" : "OFF");
             } else if (strcmp(param_name, FAN_SPEED_PARAM_NAME) == 0) {
                 fan_speed = val.val.i;
                 if (toggle_state_fan) {
                     fan_speed_control(fan_speed);
                 }
-                ESP_LOGI(TAG, "Fan speed set to %d%%", fan_speed);
+                ESP_LOGI(TAG, "Fan speed command sent: %d%%", fan_speed);
             }
         }
         /********** Unknown device **********/
         else {
             ESP_LOGW(TAG, "Unknown device in callback");
         }
-
-        /* Report the updated param back to RainMaker */
-        esp_rmaker_param_update(param, val);
     }
     return ESP_OK;
 }
@@ -515,6 +517,7 @@ esp_rmaker_device_t *app_device_create(esp_rmaker_node_t *node)
         FAN_SPEED_PARAM_NAME, ESP_RMAKER_PARAM_SPEED,
         esp_rmaker_int(0), PROP_FLAG_READ | PROP_FLAG_WRITE);
     if (fan_speed) {
+
         esp_rmaker_param_add_ui_type(fan_speed, ESP_RMAKER_UI_SLIDER);
         esp_rmaker_param_add_bounds(fan_speed, esp_rmaker_int(0), esp_rmaker_int(100), esp_rmaker_int(25));
         esp_rmaker_device_add_param(fan_device, fan_speed);
