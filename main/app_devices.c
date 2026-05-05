@@ -8,6 +8,7 @@
 #include <driver/uart.h>
 #include <app_network.h>
 #include "app_devices.h"
+#include "app_status_led.h"
 
 #define NODE_NAME "Samie's Den"
 #define NODE_TYPE "touchpannel"
@@ -188,6 +189,7 @@ static void parse_and_update_switch_states(uint8_t *data, int length)
             case 0x01: /* Fan */
                 if (toggle_state_fan != power_on || fan_speed != dim_val) {
                     toggle_state_fan = power_on;
+                    app_status_led_indicate_switch(toggle_state_fan);
                     if (dim_val != 0xFE) {
                         fan_speed = dim_val;
                     }
@@ -206,6 +208,7 @@ static void parse_and_update_switch_states(uint8_t *data, int length)
             case 0x02: /* Bulb1 */
                 if (toggle_state_bulb1 != power_on) {
                     toggle_state_bulb1 = power_on;
+                    app_status_led_indicate_switch(toggle_state_bulb1);
                     ESP_LOGI(TAG, "Bulb1 changed: %s", toggle_state_bulb1 ? "ON" : "OFF");
                     vTaskDelay(pdMS_TO_TICKS(15000));
                     esp_rmaker_param_t *p = esp_rmaker_device_get_param_by_name(bulb1_device, BULB1_POWER_PARAM_NAME);
@@ -215,6 +218,7 @@ static void parse_and_update_switch_states(uint8_t *data, int length)
             case 0x03: /* Bulb2 */
                 if (toggle_state_bulb2 != power_on) {
                     toggle_state_bulb2 = power_on;
+                    app_status_led_indicate_switch(toggle_state_bulb2);
                     ESP_LOGI(TAG, "Bulb2 changed: %s", toggle_state_bulb2 ? "ON" : "OFF");
                     vTaskDelay(pdMS_TO_TICKS(15000));
                     esp_rmaker_param_t *p = esp_rmaker_device_get_param_by_name(bulb2_device, BULB2_POWER_PARAM_NAME);
@@ -224,6 +228,7 @@ static void parse_and_update_switch_states(uint8_t *data, int length)
             case 0x04: /* Bulb3 */
                 if (toggle_state_bulb3 != power_on) {
                     toggle_state_bulb3 = power_on;
+                    app_status_led_indicate_switch(toggle_state_bulb3);
                     ESP_LOGI(TAG, "Bulb3 changed: %s", toggle_state_bulb3 ? "ON" : "OFF");
                     vTaskDelay(pdMS_TO_TICKS(15000));
                     esp_rmaker_param_t *p = esp_rmaker_device_get_param_by_name(bulb3_device, BULB3_POWER_PARAM_NAME);
@@ -233,6 +238,7 @@ static void parse_and_update_switch_states(uint8_t *data, int length)
             case 0x05: /* Bulb4 */
                 if (toggle_state_bulb4 != power_on) {
                     toggle_state_bulb4 = power_on;
+                    app_status_led_indicate_switch(toggle_state_bulb4);
                     ESP_LOGI(TAG, "Bulb4 changed: %s", toggle_state_bulb4 ? "ON" : "OFF");
                     vTaskDelay(pdMS_TO_TICKS(15000));
                     esp_rmaker_param_t *p = esp_rmaker_device_get_param_by_name(bulb4_device, BULB4_POWER_PARAM_NAME);
@@ -242,6 +248,7 @@ static void parse_and_update_switch_states(uint8_t *data, int length)
             case 0x06: /* Curtain */
                 if (toggle_state_curtain != power_on) {
                     toggle_state_curtain = power_on;
+                    app_status_led_indicate_switch(toggle_state_curtain);
                     ESP_LOGI(TAG, "Curtain changed: %s", toggle_state_curtain ? "ON" : "OFF");
                     vTaskDelay(pdMS_TO_TICKS(15000));
                     esp_rmaker_param_t *p = esp_rmaker_device_get_param_by_name(curtain_device, CURTAIN_POWER_PARAM_NAME);
@@ -251,6 +258,7 @@ static void parse_and_update_switch_states(uint8_t *data, int length)
             case 0x07: /* AC */
                 if (toggle_state_ac != power_on) {
                     toggle_state_ac = power_on;
+                    app_status_led_indicate_switch(toggle_state_ac);
                     ESP_LOGI(TAG, "AC changed: %s", toggle_state_ac ? "ON" : "OFF");
                     vTaskDelay(pdMS_TO_TICKS(15000));
                     esp_rmaker_param_t *p = esp_rmaker_device_get_param_by_name(ac_device, AC_POWER_PARAM_NAME);
@@ -331,6 +339,7 @@ static esp_err_t app_device_bulk_write_cb(
             if (strcmp(param_name, BULB1_POWER_PARAM_NAME) == 0) {
                 toggle_state_bulb1 = val.val.b;
                 send_bulb1_command(toggle_state_bulb1);
+                app_status_led_indicate_switch(toggle_state_bulb1);
                 ESP_LOGI(TAG, "Bulb1 command sent: %s", toggle_state_bulb1 ? "ON" : "OFF");
             }
         }
@@ -339,6 +348,7 @@ static esp_err_t app_device_bulk_write_cb(
             if (strcmp(param_name, BULB2_POWER_PARAM_NAME) == 0) {
                 toggle_state_bulb2 = val.val.b;
                 send_bulb2_command(toggle_state_bulb2);
+                app_status_led_indicate_switch(toggle_state_bulb2);
                 ESP_LOGI(TAG, "Bulb2 command sent: %s", toggle_state_bulb2 ? "ON" : "OFF");
             }
         }
@@ -347,6 +357,7 @@ static esp_err_t app_device_bulk_write_cb(
             if (strcmp(param_name, BULB3_POWER_PARAM_NAME) == 0) {
                 toggle_state_bulb3 = val.val.b;
                 send_bulb3_command(toggle_state_bulb3);
+                app_status_led_indicate_switch(toggle_state_bulb3);
                 ESP_LOGI(TAG, "Bulb3 command sent: %s", toggle_state_bulb3 ? "ON" : "OFF");
             }
         }
@@ -355,6 +366,7 @@ static esp_err_t app_device_bulk_write_cb(
             if (strcmp(param_name, BULB4_POWER_PARAM_NAME) == 0) {
                 toggle_state_bulb4 = val.val.b;
                 send_bulb4_command(toggle_state_bulb4);
+                app_status_led_indicate_switch(toggle_state_bulb4);
                 ESP_LOGI(TAG, "Bulb4 command sent: %s", toggle_state_bulb4 ? "ON" : "OFF");
             }
         }
@@ -363,6 +375,7 @@ static esp_err_t app_device_bulk_write_cb(
             if (strcmp(param_name, CURTAIN_POWER_PARAM_NAME) == 0) {
                 toggle_state_curtain = val.val.b;
                 send_curtain_command(toggle_state_curtain);
+                app_status_led_indicate_switch(toggle_state_curtain);
                 ESP_LOGI(TAG, "Curtain command sent: %s", toggle_state_curtain ? "ON" : "OFF");
             }
         }
@@ -371,6 +384,7 @@ static esp_err_t app_device_bulk_write_cb(
             if (strcmp(param_name, AC_POWER_PARAM_NAME) == 0) {
                 toggle_state_ac = val.val.b;
                 send_ac_command(toggle_state_ac);
+                app_status_led_indicate_switch(toggle_state_ac);
                 ESP_LOGI(TAG, "AC command sent: %s", toggle_state_ac ? "ON" : "OFF");
             }
         }
@@ -383,6 +397,7 @@ static esp_err_t app_device_bulk_write_cb(
                 } else {
                     fan_speed_control(0);
                 }
+                app_status_led_indicate_switch(toggle_state_fan);
                 ESP_LOGI(TAG, "Fan command sent: %s", toggle_state_fan ? "ON" : "OFF");
             } else if (strcmp(param_name, FAN_SPEED_PARAM_NAME) == 0) {
                 fan_speed = val.val.i;

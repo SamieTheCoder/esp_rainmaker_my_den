@@ -2,10 +2,11 @@
 dependencies:
   ## Required IDF version
   idf:
-    version: ">=5.0.0"
+    version: '>=5.0.0'
   espressif/esp_rainmaker:
-    version: ">=1.0"
+    version: '>=1.0'
   espressif/rmaker_app_network:
-    version: "*"
+    version: '*'
   espressif/rmaker_app_insights:
-    version: "*"
+    version: '*'
+  espressif/led_strip: ^2.5.5

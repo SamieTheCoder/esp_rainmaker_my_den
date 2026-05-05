@@ -1,0 +1,17 @@
+{
+	"servers": {
+		"esp-component-registry": {
+			"type": "http",
+			"url": "https://components.espressif.com/mcp"
+		},
+		"rainmaker": {
+			"type": "http",
+			"url": "https://mcp.rainmaker.espressif.com/api/mcp"
+		},
+		"espressif-documentation": {
+			"type": "http",
+			"url": "https://mcp.espressif.com/docs"
+		}
+	},
+	"inputs": []
+}
